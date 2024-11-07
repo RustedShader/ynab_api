@@ -176,7 +176,7 @@ async def create_user(request: Request):
             hashed_password = bcrypt.hashpw(base64.b64encode(hashlib.sha256(str.encode(password)).digest()), bcrypt.gensalt())
             cursor.execute(ADD_USER_CREDENTIALS, (username, hashed_password, email_id, mobile_number))
             cnx.commit()
-            return {"message": "User created successfully"}
+            return {"message": "user_created"}
 
     except mysql.connector.Error as err:
         raise HTTPException(
