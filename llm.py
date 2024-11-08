@@ -77,6 +77,22 @@ def fetch_financial_tips():
    return category
 
 
+def chatbot_test(arr):
+    MODEL = 'llama2-13b-chat-Q5_K_M' 
+    history_context = ''.join(arr[:-1])
+    current_context = arr[-1]
+    
+    data = {
+        "model": MODEL,
+        "messages": [{
+            "role": "user",
+            "content": f'This is users chat history with finacial chatbot: {history_context}. Answer his new financial question on basis of domain of previous conversations. You are a finance chatbot now and will respond like one.  Never ever response anything that is not related to finance. If current question is not related to finance please just response with I cannot help you with that. Please dont response with Based on your previous interactions just reply the question asked. Question is: {current_context}'
+            }],
+    }
+    response = requests.post(f"{api_base_url}/v1/chat/completions", headers=headers, json=data).json()
+    category = response['choices'][0]['message']['content'].strip()
+    return category
+
 if __name__ == '__main__':
-    # print(categorize_naration("ofeoiefi"))
-    print(fetch_financial_tips())
+    input_conversations = ["what are stocks in finance", "ok so in which stock should i apply for" , "tell some famous stocks of india"]
+    print(chatbot_test(input_conversations))

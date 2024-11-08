@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 import bcrypt
 from news_api import get_latest_finance_news
-from llm import categorize_naration
+from llm import categorize_naration , chatbot_test
 from contextlib import asynccontextmanager
 from datetime import timedelta, timezone
 from dotenv import load_dotenv
@@ -327,6 +327,40 @@ async def create_user_data(request: Request , user_id: int = Depends(get_current
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {err}"
         )
+
+
+@app.post('/chatbot')
+async def chatbot(request: Request , user_id: int = Depends(get_current_user)):
+    username = request.headers.get('username')
+    chat_arr = request.headers.get('chat')
+    if not username or not chat_arr:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Username not found in the headers"
+        )
+
+    try:
+        with mysql.connector.connect(**DB_CONFIG) as cnx:
+            cursor = cnx.cursor()
+            cursor.execute(CHECK_USER_EXISTS, (username,))
+            user_id = cursor.fetchone() # type: ignore
+            if not user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User does not exist"
+                )
+            response = chatbot_test(chat_arr) 
+            
+            if response:
+                return {"response": response}
+
+
+    except mysql.connector.Error as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {err}"
+        )
+
 
 @app.post("/fetch_transactions")
 async def fetch_user_transactions(request: Request , user_id: int = Depends(get_current_user)):
