@@ -320,7 +320,7 @@ async def create_user_data(request: Request , user_id: int = Depends(get_current
                 # Commit all transaction inserts
                 cnx.commit()
 
-            return {"message": "Added initial transactions"}
+            return {"message": "added_initial_transacrtions"}
 
     except mysql.connector.Error as err:
         raise HTTPException(
