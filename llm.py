@@ -1,7 +1,11 @@
 from dotenv import load_dotenv
 import requests
 import os
-
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import SecretStr
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, MessagesState, StateGraph
 
 load_dotenv()
 
@@ -9,6 +13,21 @@ API_TOKEN = os.getenv("VULTR_SERVERLESS_API_KEY")
 MODEL = "zephyr-7b-beta-Q5_K_M"
 api_base_url = "https://api.vultrinference.com"
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
+
+
+# prompt = ChatPromptTemplate.from_messages(
+#     [
+#         (
+#             "system",
+#             "You talk like a financial chatbot. Answer all questions to the best of your ability.",
+#         ),
+#         MessagesPlaceholder(variable_name="messages"),
+#     ]
+# )
+
+
+# Define a new graph
+workflow = StateGraph(state_schema=MessagesState)
 
 def categorize_naration(input_prompt: str) -> str | None:
     data = {
@@ -61,6 +80,19 @@ def categorize_naration(input_prompt: str) -> str | None:
         return 'UNCATEGORIZED'
 
 
+def test():
+    MODEL2 = 'llama2-13b-chat-Q5_K_M' 
+    messages = [
+    HumanMessage(content="What is the capital of India?"),
+]
+    client = ChatOpenAI(api_key=SecretStr(str(API_TOKEN)), base_url='https://api.vultrinference.com/v1' ,model=MODEL2)
+    llm_response = client.invoke(messages)
+    print(llm_response.content)
+    
+    
+    
+    
+
 def fetch_financial_tips():
    data = {
         "model": MODEL,
@@ -81,18 +113,21 @@ def chatbot_test(arr):
     MODEL = 'llama2-13b-chat-Q5_K_M' 
     history_context = ''.join(arr[:-1])
     current_context = arr[-1]
-    
-    data = {
-        "model": MODEL,
-        "messages": [{
-            "role": "user",
-            "content": f'This is users chat history with finacial chatbot: {history_context}. Answer his new financial question on basis of domain of previous conversations. You are a finance chatbot now and will respond like one.  Never ever response anything that is not related to finance. If current question is not related to finance please just response with I cannot help you with that. Please dont response with Based on your previous interactions just reply the question asked. Question is: {current_context}'
-            }],
-    }
-    response = requests.post(f"{api_base_url}/v1/chat/completions", headers=headers, json=data).json()
-    category = response['choices'][0]['message']['content'].strip()
-    return category
+    messages = [
+    HumanMessage(content=f'You are a finace chatbot now and will respond like one. You have to reply to question that user asked. This is chat history of user with a finace chatbot: {history_context}.   Answer financial question that user asked with help of chat history if needed for the response of question that user asked.   Never ever response anything that is not related to finance. If current question is not related to finance please just response with I cannot help you with that. Please dont response with Based on your previous interactions Just reply the question asked.  Question that user asked is: {current_context}')
+]
+    client = ChatOpenAI(api_key=SecretStr(str(API_TOKEN)), base_url='https://api.vultrinference.com/v1' ,model=MODEL)
+    llm_response = client.invoke(messages)
+    return llm_response.content
+
+workflow.add_edge(START, "model")
+workflow.add_node("model", chatbot_test)
+
+# Add memory
+memory = MemorySaver()
+app = workflow.compile(checkpointer=memory)
 
 if __name__ == '__main__':
-    input_conversations = ["what are stocks in finance", "ok so in which stock should i apply for" , "tell some famous stocks of india"]
-    print(chatbot_test(input_conversations))
+    # input_conversations = ["what are stocks in finance", "ok so in which stock should i apply for" , "tell some famous stocks of india"]
+    # print(chatbot_test(input_conversations))
+    test()
