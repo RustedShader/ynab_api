@@ -29,7 +29,15 @@ headers = {"Authorization": f"Bearer {API_TOKEN}"}
 # Define a new graph
 workflow = StateGraph(state_schema=MessagesState)
 
-def categorize_naration(input_prompt: str) -> str | None:
+import requests
+
+def categorize_naration(input_prompt: str) -> str:
+    # First, try to categorize using the rule-based approach
+    category = categorize_naration_rule_based(input_prompt)
+    if category != "UNCATEGORIZED":
+        return category
+
+    # If the rule-based approach fails, use the LLM-based categorization
     data = {
         "model": MODEL,
         "max_tokens": 10,
@@ -65,19 +73,41 @@ def categorize_naration(input_prompt: str) -> str | None:
 
     if response and 'choices' in response and response['choices']:
         category = response['choices'][0]['message']['content'].strip()
-        print(input_prompt)
-        print(category)
         
         # Check if the output contains any of the expected keywords
         if any(keyword in category for keyword in ['ENTERTAINMENT', 'LIFESTYLE', 'EDUCATION', 'SHOPPING', 'ECOMMERCE', 'TRAVEL', 'UTILITIES', 'SERVICES', 'GENERAL' , 'FOOD']):
             for keyword in ['ENTERTAINMENT', 'LIFESTYLE', 'EDUCATION', 'SHOPPING', 'ECOMMERCE', 'TRAVEL', 'UTILITIES', 'SERVICES', 'GENERAL' , 'FOOD']:
                 if keyword in category:
-                    print(keyword)
                     return keyword
         else:
             return 'UNCATEGORIZED'
-    else:
-        return 'UNCATEGORIZED'
+    
+    return 'UNCATEGORIZED'
+
+def categorize_naration_rule_based(input_prompt: str) -> str:
+    category_keywords = {
+        "FOOD": ["restaurant", "cafe", "bakery", "food"],
+        "ENTERTAINMENT": ["movie", "concert", "theater", "entertainment"],
+        "LIFESTYLE": ["gym", "salon", "spa", "lifestyle"],
+        "EDUCATION": ["school", "university", "education"],
+        "SHOPPING": ["retail", "shopping", "apparel"],
+        "ECOMMERCE": ["online", "website", "ecommerce"],
+        "TRAVEL": ["hotel", "airline", "travel"],
+        "UTILITIES": ["electricity", "water", "utilities"],
+        "SERVICES": ["service", "professional", "consultant"],
+        "GENERAL": ["general", "miscellaneous"]
+    }
+
+    # First, check if the narration contains any food-related keywords
+    if any(keyword in input_prompt.lower() for keyword in category_keywords["FOOD"]):
+        return "FOOD"
+
+    # Then, check the narration against the other categories
+    for category, keywords in category_keywords.items():
+        if category != "FOOD" and any(keyword in input_prompt.lower() for keyword in keywords):
+            return category
+
+    return "UNCATEGORIZED"
 
 
 def test():
@@ -130,4 +160,4 @@ app = workflow.compile(checkpointer=memory)
 if __name__ == '__main__':
     # input_conversations = ["what are stocks in finance", "ok so in which stock should i apply for" , "tell some famous stocks of india"]
     # print(chatbot_test(input_conversations))
-    test()
+    print(fetch_financial_tips())
